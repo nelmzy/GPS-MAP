@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPS Tracker</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <style>
+        #map { height: 500px; width: 100%; }
+    </style>
+</head>
+<body>
+    <h2>Live GPS Tracker</h2>
+    <div id="map"></div>
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script>
+        const GITHUB_USERNAME = "nelmzy";  // Replace with your GitHub username
+        const REPO_NAME = "GPS";    // Replace with your private repo name
+        const FILE_PATH = "modem_data.csv";       // Path to your CSV file in the repo
+        const ACCESS_TOKEN = "your-github-token"; // 🔒 Replace with your GitHub token (keep private)
+
+        async function fetchCSVFromGitHub() {
+            const url = `https://api.github.com/repos/${GITHUB_USERNAME}/${REPO_NAME}/contents/${FILE_PATH}`;
+            const response = await fetch(url, {
+                headers: { Authorization: `token ${ACCESS_TOKEN}` }
+            });
+
+            if (!response.ok) {
+                console.error("Failed to fetch CSV:", response.statusText);
+                return;
+            }
+
+            const data = await response.json();
+            const csvContent = atob(data.content); // Decode base64 content
+            processCSV(csvContent);
+        }
+
+        function processCSV(csv) {
+            const rows = csv.trim().split("\n");
+            const latest = rows[rows.length - 1].split(",");
+            
+            const lat = parseFloat(latest[1]);
+            const lon = parseFloat(latest[2]);
+
+            // Initialize the map
+            const map = L.map('map').setView([lat, lon], 10);
+
+            // Add OpenStreetMap tiles
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+
+            // Add marker
+            L.marker([lat, lon]).addTo(map)
+                .bindPopup(`Latest Location: ${lat}, ${lon}`)
+                .openPopup();
+        }
+
+        fetchCSVFromGitHub();
+    </script>
+</body>
+</html>
