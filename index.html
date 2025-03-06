@@ -16,32 +16,46 @@
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script>
         const GITHUB_USERNAME = "nelmzy";  // Replace with your GitHub username
-        const REPO_NAME = "GPS";    // Replace with your private repo name
-        const FILE_PATH = "modem_data.csv";       // Path to your CSV file in the repo
-        const ACCESS_TOKEN = "your-github-token"; // 🔒 Replace with your GitHub token (keep private)
-
+        const REPO_NAME = "GPS";  // Replace with your public repo name
+        const FILE_PATH = "modem_data.csv";  // Path to your CSV file in the repo
+        const BRANCH_NAME = "main";  // Ensure this matches your branch name
+        
         async function fetchCSVFromGitHub() {
-            const url = `https://api.github.com/repos/${GITHUB_USERNAME}/${REPO_NAME}/contents/${FILE_PATH}`;
-            const response = await fetch(url, {
-                headers: { Authorization: `token ${ACCESS_TOKEN}` }
-            });
-
-            if (!response.ok) {
-                console.error("Failed to fetch CSV:", response.statusText);
-                return;
+            const url = `https://raw.githubusercontent.com/${GITHUB_USERNAME}/${REPO_NAME}/${BRANCH_NAME}/${FILE_PATH}`;
+            
+            try {
+                const response = await fetch(url, { cache: "no-store" }); // Prevent caching issues
+                if (!response.ok) throw new Error(`Failed to fetch CSV: ${response.status} ${response.statusText}`);
+                const csvContent = await response.text();
+                processCSV(csvContent);
+            } catch (error) {
+                console.error("Error fetching CSV:", error);
+                alert("Failed to load GPS data. Please check the file path and repo settings.");
             }
-
-            const data = await response.json();
-            const csvContent = atob(data.content); // Decode base64 content
-            processCSV(csvContent);
         }
 
         function processCSV(csv) {
             const rows = csv.trim().split("\n");
+            if (rows.length < 2) {
+                console.error("CSV file is empty or missing data.");
+                alert("No GPS data available.");
+                return;
+            }
+            
             const latest = rows[rows.length - 1].split(",");
+            if (latest.length < 3) {
+                console.error("Invalid CSV format.");
+                alert("GPS data format is incorrect.");
+                return;
+            }
             
             const lat = parseFloat(latest[1]);
             const lon = parseFloat(latest[2]);
+            if (isNaN(lat) || isNaN(lon)) {
+                console.error("Invalid latitude or longitude values.");
+                alert("GPS coordinates are invalid.");
+                return;
+            }
 
             // Initialize the map
             const map = L.map('map').setView([lat, lon], 10);
