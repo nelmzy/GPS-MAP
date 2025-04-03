@@ -65,6 +65,18 @@
         #home-button:hover {
             background-color: #218838;
         }
+
+        .date-picker-container {
+            margin-top: 20px;
+        }
+
+        input[type="date"] {
+            background-color: #333;
+            color: white;
+            border: 1px solid #555;
+            padding: 10px;
+            border-radius: 5px;
+        }
     </style>
 </head>
 <body>
@@ -76,6 +88,14 @@
     </a>
     
     <div id="map"></div>
+    
+    <!-- Date Picker Filters -->
+    <div class="date-picker-container">
+        <label for="from-date">From: </label>
+        <input type="date" id="from-date" onchange="setCustomDateRange()">
+        <label for="to-date">To: </label>
+        <input type="date" id="to-date" onchange="setCustomDateRange()">
+    </div>
     
     <!-- Time Range Filters -->
     <div>
@@ -178,6 +198,29 @@
             }
         }
 
+        // Apply custom date range filter
+        function setCustomDateRange() {
+            const fromDate = document.getElementById('from-date').value;
+            const toDate = document.getElementById('to-date').value;
+
+            if (fromDate && toDate) {
+                const from = new Date(fromDate);
+                const to = new Date(toDate);
+
+                filteredData = gpsData.filter(data => {
+                    const timestamp = new Date(data.timestamp);
+                    return timestamp >= from && timestamp <= to;
+                });
+
+                markers.forEach(marker => marker.remove());
+                markers = [];
+                currentIndex = 0;
+                if (filteredData.length > 0) {
+                    map.setView([filteredData[0].lat, filteredData[0].lon], 10);
+                }
+            }
+        }
+
         // Animate the markers
         function animateMarkers() {
             if (currentIndex < filteredData.length) {
@@ -200,16 +243,21 @@
             }
         }
 
-        // Start or pause the animation (toggle functionality)
+        // Start, pause, or resume the animation (toggle functionality)
         function startPauseAnimation() {
+            const startPauseButton = document.getElementById('start-pause-animation');
+            
             if (animationInterval) {
                 clearInterval(animationInterval);  // Pause animation
                 animationInterval = null; // Reset interval ID
+                startPauseButton.textContent = "Resume Animation";  // Change button text to "Resume"
             } else {
-                currentIndex = 0;
-                markers.forEach(marker => marker.remove()); // Clear existing markers
-                markers = [];
-                animationInterval = setInterval(animateMarkers, gpsUpdateInterval); // Start animation with selected speed
+                if (currentIndex === 0) {
+                    markers.forEach(marker => marker.remove()); // Clear existing markers if starting fresh
+                    markers = [];
+                }
+                animationInterval = setInterval(animateMarkers, gpsUpdateInterval); // Start or resume animation with selected speed
+                startPauseButton.textContent = "Pause Animation";  // Change button text to "Pause"
             }
         }
 
