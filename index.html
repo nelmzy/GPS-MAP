@@ -60,12 +60,19 @@
 </head>
 <body>
     <h2>Live GPS Tracker - Where are the Nelmes?</h2>
+    
+    <!-- Home button to navigate to the index.html -->
+    <a href="gps-animation.html">
+        <button>Animated GPS Tracker</button>
+    </a>
+
     <div id="info">
         <p><strong>Last Update:</strong> <span id="timestamp">Loading...</span></p>
         <p><strong>Coordinates:</strong> <span id="coordinates">Fetching...</span></p>
         <button onclick="fetchCSVFromGitHub()" aria-label="Refresh location">Refresh Location</button>
         <button onclick="toggleTheme()" aria-label="Toggle theme">Toggle Theme</button>
     </div>
+
     <div id="map"></div>
 
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
