@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPS Time-Based Animation</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <style>
+        body {
+            background-color: #121212;
+            color: #ffffff;
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+        }
+        h2 {
+            margin: 20px 0;
+        }
+        #map {
+            height: 500px;
+            width: 100%;
+            margin: 0 auto;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 5px;
+            margin-top: 10px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .active {
+            background-color: #28a745; /* Green for active state */
+            border: 2px solid #218838;
+        }
+        .hidden { display: none; }
+        #speed-control {
+            margin-top: 20px;
+            color: #ffffff;
+        }
+        .slider {
+            width: 300px;
+        }
+        /* Styling for the home button */
+        #home-button {
+            background-color: #28a745; /* Green for home button */
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 5px;
+            margin-top: 20px; /* Adjusted margin */
+	    margin-bottom: 20px;
+            transition: background-color 0.3s;
+        }
+        #home-button:hover {
+            background-color: #218838;
+        }
+    </style>
+</head>
+<body>
+    <h2>Time-Based GPS Animation</h2>
+    
+    <!-- Home Button -->
+    <a href="index.html">
+        <button id="home-button">Home</button>
+    </a>
+    
+    <div id="map"></div>
+    
+    <!-- Time Range Filters -->
+    <div>
+        <button onclick="setTimeRange(24)" id="range-24">Past 24 Hours</button>
+        <button onclick="setTimeRange(72)" id="range-72">Past 72 Hours</button>
+        <button onclick="setTimeRange(168)" id="range-168">Past 1 Week</button>
+        <button onclick="setTimeRange(336)" id="range-336">Past 2 Weeks</button>
+        <button onclick="setTimeRange(720)" id="range-720">Past 1 Month</button>
+        <button onclick="setTimeRange(0)" id="range-all">All Time</button>
+    </div>
+
+    <button onclick="startPauseAnimation()" id="start-pause-animation">Start Animation</button>
+    <button onclick="restartAnimation()" id="restart-animation">Restart Animation</button>
+
+    <!-- Speed Control -->
+    <div id="speed-control">
+        <label for="speed-slider">GPS Update Interval: </label>
+        <input id="speed-slider" class="slider" type="range" min="100" max="1000" step="100" value="500">
+        <span id="speed-value">500 ms</span>
+    </div>
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script>
+        const GITHUB_USERNAME = "nelmzy";
+        const REPO_NAME = "GPS-MAP";
+        const FILE_PATH = "modem_data.csv";
+        const BRANCH_NAME = "main";
+
+        let map;
+        let markers = [];
+        let currentIndex = 0;
+        let gpsData = [];
+        let filteredData = [];
+        let animationInterval;  // Interval ID for controlling GPS updates
+        let gpsUpdateInterval = 500;  // Default interval for GPS update (500ms)
+
+        // Initialize Leaflet map
+        function initMap() {
+            map = L.map('map').setView([0, 0], 2); // Start at a default position (zoom 2)
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+        }
+
+        // Fetch CSV data from GitHub
+        async function fetchCSVFromGitHub() {
+            const url = `https://raw.githubusercontent.com/${GITHUB_USERNAME}/${REPO_NAME}/${BRANCH_NAME}/${FILE_PATH}`;
+            
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error(`Failed to fetch CSV: ${response.status} ${response.statusText}`);
+                const csvContent = await response.text();
+                parseCSV(csvContent);
+            } catch (error) {
+                console.error("Error fetching CSV:", error);
+                alert("Failed to load GPS data.");
+            }
+        }
+
+        // Parse CSV and prepare data
+        function parseCSV(csv) {
+            const rows = csv.trim().split("\n");
+            gpsData = rows.slice(1).map(row => {
+                const [timestamp, lat, lon] = row.split(",");
+                return { timestamp, lat: parseFloat(lat), lon: parseFloat(lon) };
+            });
+
+            // Set the initial map center based on the first data point
+            if (gpsData.length > 0) {
+                const firstData = gpsData[0];
+                map.setView([firstData.lat, firstData.lon], 10); // Adjust zoom level if necessary
+            }
+
+            // Set the initial filter to all time
+            filteredData = gpsData;
+        }
+
+        // Apply time range filter
+        function setTimeRange(hours) {
+            // Remove active class from all range buttons
+            const buttons = document.querySelectorAll('[id^="range-"]');
+            buttons.forEach(button => button.classList.remove('active'));
+
+            // Add active class to the clicked button
+            document.getElementById(`range-${hours === 0 ? 'all' : hours}`).classList.add('active');
+
+            const now = new Date();
+            filteredData = gpsData.filter(data => {
+                const timestamp = new Date(data.timestamp);
+                const timeDifference = (now - timestamp) / (1000 * 60 * 60); // Difference in hours
+                return timeDifference <= hours || hours === 0; // Show all data if hours is 0
+            });
+
+            // Clear markers and reset animation
+            markers.forEach(marker => marker.remove());
+            markers = [];
+            currentIndex = 0;
+            if (filteredData.length > 0) {
+                map.setView([filteredData[0].lat, filteredData[0].lon], 10); // Reset the view based on first filtered data
+            }
+        }
+
+        // Animate the markers
+        function animateMarkers() {
+            if (currentIndex < filteredData.length) {
+                const currentData = filteredData[currentIndex];
+                const lat = currentData.lat;
+                const lon = currentData.lon;
+                const timestamp = new Date(currentData.timestamp).toLocaleString();
+
+                // Add a marker for the current point
+                const marker = L.marker([lat, lon]).addTo(map)
+                    .bindPopup(`Location at ${timestamp}`)
+                    .openPopup();
+                markers.push(marker);
+
+                // Move to the next marker
+                currentIndex++;
+            } else {
+                alert('Animation complete!');
+                clearInterval(animationInterval);  // Stop the animation when it's finished
+            }
+        }
+
+        // Start or pause the animation (toggle functionality)
+        function startPauseAnimation() {
+            if (animationInterval) {
+                clearInterval(animationInterval);  // Pause animation
+                animationInterval = null; // Reset interval ID
+            } else {
+                currentIndex = 0;
+                markers.forEach(marker => marker.remove()); // Clear existing markers
+                markers = [];
+                animationInterval = setInterval(animateMarkers, gpsUpdateInterval); // Start animation with selected speed
+            }
+        }
+
+        // Restart the animation from the beginning
+        function restartAnimation() {
+            currentIndex = 0;
+            markers.forEach(marker => marker.remove()); // Clear existing markers
+            markers = [];
+            animationInterval = setInterval(animateMarkers, gpsUpdateInterval); // Start animation with selected speed
+        }
+
+        // Update the speed based on the slider value
+        document.getElementById('speed-slider').addEventListener('input', function(event) {
+            gpsUpdateInterval = parseInt(event.target.value);
+            document.getElementById('speed-value').textContent = `${gpsUpdateInterval} ms`;
+        });
+
+        // Initialize map and fetch data on page load
+        initMap();
+        fetchCSVFromGitHub();
+    </script>
+</body>
+</html>
