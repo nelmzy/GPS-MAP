@@ -21,8 +21,8 @@
         }
         #map {
             height: 500px;
-            width: 100%;
-            max-width: 100%;
+            width: 90%;
+            max-width: 90%;
             margin: 0 auto;
             border-radius: 10px;
             overflow: hidden;
@@ -45,6 +45,7 @@
             cursor: pointer;
             border-radius: 5px;
             margin-top: 10px;
+	    margin-bottom: 10px;
             transition: background-color 0.3s;
         }
         button:hover {
@@ -56,6 +57,22 @@
             h2 { font-size: 1.5em; }
             button { font-size: 14px; padding: 8px 16px; }
         }
+	/* Styling for the home button */
+        #home-button {
+            background-color: #007bff; 
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 5px;
+            margin-top: 20px; /* Adjusted margin */
+	    margin-bottom: 20px;
+            transition: background-color 0.3s;
+        }
+        #home-button:hover {
+            background-color: #218838;
+        }
+
     </style>
 </head>
 <body>
@@ -66,14 +83,14 @@
         <button>Animated GPS Tracker</button>
     </a>
 
-    <div id="info">
+    <div id="map"></div>
+
+<div id="info">
         <p><strong>Last Update:</strong> <span id="timestamp">Loading...</span></p>
         <p><strong>Coordinates:</strong> <span id="coordinates">Fetching...</span></p>
         <button onclick="fetchCSVFromGitHub()" aria-label="Refresh location">Refresh Location</button>
         <button onclick="toggleTheme()" aria-label="Toggle theme">Toggle Theme</button>
     </div>
-
-    <div id="map"></div>
 
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script>
